@@ -31,6 +31,10 @@ export class RuntimePromptBridge implements PromptBridge {
       width: 420,
       height: 180,
       focused: true,
+    chrome.runtime.sendMessage({
+      type: "TABDEATH_PROMPT_WHAT",
+      requestId,
+      tab,
     });
 
     return new Promise<string | null>((resolve) => {
@@ -46,6 +50,9 @@ export class RuntimePromptBridge implements PromptBridge {
             }
           }
           await chrome.storage.session.remove(`prompt:${requestId}`);
+      setTimeout(() => {
+        if (this.pending.has(requestId)) {
+          this.pending.delete(requestId);
           resolve(null);
         }
       }, 5000);
