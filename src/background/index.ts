@@ -18,6 +18,8 @@ const opRepo = new DexieOpRepository(db);
 
 const settings = await loadSettings();
 const capture = new DefaultCaptureService(db, itemRepo, opRepo, settings.maxStars);
+const capture = new DefaultCaptureService(db, itemRepo, opRepo, 5);
+const capture = new DefaultCaptureService(db, itemRepo, opRepo);
 
 const decay = new DefaultDecayEngine();
 const cap = new DefaultCapPolicy();
