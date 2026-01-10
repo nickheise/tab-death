@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Death",
+  "version": "0.1.0",
+  "permissions": ["tabs", "storage", "alarms", "contextMenus", "windows"],
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "commands": {
+    "tabdeath-close": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+W",
+        "mac": "Command+Shift+W"
+      },
+      "description": "Close tab with Tab Death…"
+    }
+  },
+  "action": {
+    "default_title": "Tab Death",
+    "default_popup": "popup.html"
+  }
+}
