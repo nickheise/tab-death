@@ -5,6 +5,7 @@ import { DefaultDecayEngine } from "../app/core/defaultDecayEngine";
 import { TabDeathDB } from "../store/db";
 import { DexieItemRepository, DexieOpRepository } from "../store/repositories";
 import { ExportService } from "../store/exportService";
+import { loadSettings } from "../store/settings";
 import { DefaultChromePlatformAdapter } from "../platform/chromeAdapter";
 import { SystemClock } from "../platform/clock";
 import { DefaultDomainPolicy } from "../platform/domainPolicy";
@@ -15,6 +16,8 @@ const db = new TabDeathDB();
 const itemRepo = new DexieItemRepository(db);
 const opRepo = new DexieOpRepository(db);
 
+const settings = await loadSettings();
+const capture = new DefaultCaptureService(db, itemRepo, opRepo, settings.maxStars);
 const capture = new DefaultCaptureService(db, itemRepo, opRepo, 5);
 const capture = new DefaultCaptureService(db, itemRepo, opRepo);
 
@@ -57,6 +60,7 @@ const ingestor = new DefaultChromeEventIngestor({
 });
 
 ingestor.init();
+void maintenance.runDailyMaintenance(clock.nowDate());
 
 const exportService = new ExportService(db);
 
