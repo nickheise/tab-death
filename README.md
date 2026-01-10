@@ -1,2 +1,2 @@
-# tab-death
-Tab Death provides a trustworthy off-ramp for curiosity by capturing intent at tab close and enforcing automatic decay.
+# tab death 💀
+Capturing your good intentions right before they rot in a browser graveyard of 47 tabs you'll never revisit.
