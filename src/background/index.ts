@@ -55,3 +55,14 @@ const ingestor = new DefaultChromeEventIngestor({
 });
 
 ingestor.init();
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "TABDEATH_GET_REVIEW_BUCKETS") {
+    void (async () => {
+      const buckets = await maintenance.getReviewBuckets(clock.nowDate());
+      sendResponse(buckets);
+    })();
+    return true;
+  }
+  return false;
+});
