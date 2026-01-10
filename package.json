@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build && node scripts/copy-static.mjs",
+    "typecheck": "tsc --noEmit",
+    "sanity": "npm run typecheck && npm run build"
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

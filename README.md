@@ -22,3 +22,9 @@ This outputs a `dist/` folder. Load that folder via `chrome://extensions` → "L
 ```
 npm run typecheck
 ```
+
+### Sanity check (typecheck + build)
+
+```
+npm run sanity
+```
