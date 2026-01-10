@@ -24,6 +24,13 @@ export class RuntimePromptBridge implements PromptBridge {
   async requestWhy(tab: ChromeTabSnapshot): Promise<string | null> {
     const requestId = crypto.randomUUID();
 
+    await chrome.storage.session.set({ [`prompt:${requestId}`]: tab });
+    const windowInfo = await chrome.windows.create({
+      url: chrome.runtime.getURL(`prompt.html#${encodeURIComponent(requestId)}`),
+      type: "popup",
+      width: 420,
+      height: 180,
+      focused: true,
     chrome.runtime.sendMessage({
       type: "TABDEATH_PROMPT_WHAT",
       requestId,
@@ -32,6 +39,17 @@ export class RuntimePromptBridge implements PromptBridge {
 
     return new Promise<string | null>((resolve) => {
       this.pending.set(requestId, resolve);
+      setTimeout(async () => {
+        if (this.pending.has(requestId)) {
+          this.pending.delete(requestId);
+          if (windowInfo?.id) {
+            try {
+              await chrome.windows.remove(windowInfo.id);
+            } catch {
+              // ignore
+            }
+          }
+          await chrome.storage.session.remove(`prompt:${requestId}`);
       setTimeout(() => {
         if (this.pending.has(requestId)) {
           this.pending.delete(requestId);

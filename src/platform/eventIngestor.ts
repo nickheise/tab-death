@@ -1,5 +1,6 @@
 import { ChromePlatformAdapter, ChromeTabSnapshot } from "./chromeAdapter";
 import { PromptBridge } from "./promptBridge";
+import { MicroBatchQueue } from "../store/writeQueue";
 
 export interface IngestorConfig {
   ignoreUrlPrefixes: string[];
@@ -38,6 +39,13 @@ export interface ChromeEventIngestorDeps {
 
 export class DefaultChromeEventIngestor {
   private disposed = false;
+  private passiveQueue: MicroBatchQueue<{ tabId: number; removedAtIso: string }>;
+
+  constructor(private readonly deps: ChromeEventIngestorDeps) {
+    this.passiveQueue = new MicroBatchQueue(async (batch) => {
+      await this.flushPassiveBatch(batch);
+    }, 200);
+  }
   private passiveQueue: Array<{ tabId: number; removedAtIso: string }> = [];
   private draining = false;
 
@@ -91,6 +99,19 @@ export class DefaultChromeEventIngestor {
     return cfg.ignoreUrlPrefixes.some((prefix) => url.startsWith(prefix));
   }
 
+  private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
+    for (const evt of batch) {
+      const tab = await this.deps.platform.tryGetTab(evt.tabId);
+      if (!tab) continue;
+      if (this.shouldIgnore(tab.url, tab)) continue;
+
+      await this.deps.capture.captureClosedTab({
+        url: tab.url,
+        title: tab.title,
+        domain: this.deps.domainPolicy.domainFromUrl(tab.url),
+        at: evt.removedAtIso,
+        why: null,
+      });
   private async drainPassiveQueue(): Promise<void> {
     if (this.draining) return;
     this.draining = true;
