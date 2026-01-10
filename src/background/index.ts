@@ -16,6 +16,7 @@ const itemRepo = new DexieItemRepository(db);
 const opRepo = new DexieOpRepository(db);
 
 const capture = new DefaultCaptureService(db, itemRepo, opRepo, 5);
+const capture = new DefaultCaptureService(db, itemRepo, opRepo);
 
 const decay = new DefaultDecayEngine();
 const cap = new DefaultCapPolicy();
