@@ -6,6 +6,7 @@
     "build": "vite build && node scripts/copy-static.mjs",
     "typecheck": "tsc --noEmit",
     "sanity": "npm run typecheck && npm run build"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dexie": "^4.0.1"

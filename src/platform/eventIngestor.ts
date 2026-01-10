@@ -46,6 +46,10 @@ export class DefaultChromeEventIngestor {
       await this.flushPassiveBatch(batch);
     }, 200);
   }
+  private passiveQueue: Array<{ tabId: number; removedAtIso: string }> = [];
+  private draining = false;
+
+  constructor(private readonly deps: ChromeEventIngestorDeps) {}
 
   init(): void {
     const { platform } = this.deps;
@@ -53,6 +57,7 @@ export class DefaultChromeEventIngestor {
     platform.onTabRemoved((tabId) => {
       if (this.disposed) return;
       this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
+      void this.drainPassiveQueue();
     });
 
     platform.onCommand((command) => {
@@ -107,6 +112,26 @@ export class DefaultChromeEventIngestor {
         at: evt.removedAtIso,
         why: null,
       });
+  private async drainPassiveQueue(): Promise<void> {
+    if (this.draining) return;
+    this.draining = true;
+    try {
+      const batch = this.passiveQueue.splice(0, this.passiveQueue.length);
+      for (const evt of batch) {
+        const tab = await this.deps.platform.tryGetTab(evt.tabId);
+        if (!tab) continue;
+        if (this.shouldIgnore(tab.url, tab)) continue;
+
+        await this.deps.capture.captureClosedTab({
+          url: tab.url,
+          title: tab.title,
+          domain: this.deps.domainPolicy.domainFromUrl(tab.url),
+          at: evt.removedAtIso,
+          why: null,
+        });
+      }
+    } finally {
+      this.draining = false;
     }
   }
 
