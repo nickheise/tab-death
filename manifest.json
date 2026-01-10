@@ -19,5 +19,6 @@
   "action": {
     "default_title": "Tab Death",
     "default_popup": "popup.html"
+    "default_title": "Tab Death"
   }
 }

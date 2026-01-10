@@ -1,4 +1,5 @@
 const renderList = (rootId, items, emptyLabel, renderItem) => {
+const renderList = (rootId, items, emptyLabel) => {
   const root = document.getElementById(rootId);
   root.innerHTML = "";
 
@@ -12,6 +13,19 @@ const renderList = (rootId, items, emptyLabel, renderItem) => {
 
   items.forEach((item) => {
     const wrap = renderItem(item);
+    const wrap = document.createElement("div");
+    wrap.className = "item";
+
+    const why = document.createElement("div");
+    why.className = "why";
+    why.textContent = item.why || item.title || "(no note)";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `${item.domain} · ${ageInDays(item.createdAt)} days`;
+
+    wrap.appendChild(why);
+    wrap.appendChild(meta);
     root.appendChild(wrap);
   });
 };
@@ -109,3 +123,9 @@ const loadBuckets = async () => {
 };
 
 void loadBuckets();
+chrome.runtime.sendMessage({ type: "TABDEATH_GET_REVIEW_BUCKETS" }, (response) => {
+  if (!response) return;
+  renderList("unclaimed", response.unclaimed || [], "Nothing waiting.");
+  renderList("deathRow", response.deathRow || [], "No items in Last Chance.");
+  renderList("starred", response.starred || [], "No starred items.");
+});
