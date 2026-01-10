@@ -137,5 +137,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (message?.type === "TABDEATH_SEARCH_ARCHIVED") {
+    void (async () => {
+      if (typeof message.query !== "string") {
+        sendResponse([]);
+        return;
+      }
+      const results = await itemRepo.searchArchived({ q: message.query, limit: 25 });
+      sendResponse(results);
+    })();
+    return true;
+  }
   return false;
 });

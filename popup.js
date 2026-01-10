@@ -143,6 +143,16 @@ document.getElementById("exportJson").addEventListener("click", async () => {
 
 document.getElementById("exportCsv").addEventListener("click", async () => {
   await send({ type: "TABDEATH_EXPORT", format: "csv_items" });
+});
+
+document.getElementById("exportOps").addEventListener("click", async () => {
+  await send({ type: "TABDEATH_EXPORT", format: "json_ops" });
+});
+
+document.getElementById("archiveSearch").addEventListener("click", async () => {
+  const query = document.getElementById("archiveQuery").value.trim();
+  const results = await send({ type: "TABDEATH_SEARCH_ARCHIVED", query });
+  renderList("archiveResults", results || [], "No archived matches.", renderReviewable);
 };
 
 void loadBuckets();
