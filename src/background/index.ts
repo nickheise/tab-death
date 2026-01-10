@@ -64,5 +64,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (message?.type === "TABDEATH_SET_WHY") {
+    void (async () => {
+      if (typeof message.id !== "string") {
+        sendResponse({ ok: false });
+        return;
+      }
+      await capture.annotateWhy(message.id, message.why ?? null);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (message?.type === "TABDEATH_REOPEN_ITEM") {
+    void (async () => {
+      if (typeof message.id !== "string" || typeof message.url !== "string") {
+        sendResponse({ ok: false });
+        return;
+      }
+      await platform.openUrl(message.url, { active: true });
+      await capture.touch(message.id);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
   return false;
 });
