@@ -27,7 +27,6 @@ export class DefaultCaptureService implements CaptureService {
     private readonly items: DexieItemRepository,
     private readonly ops: DexieOpRepository,
     private readonly maxStars: number
-    private readonly ops: DexieOpRepository
   ) {}
 
   async captureClosedTab(snapshot: CaptureSnapshot): Promise<string> {

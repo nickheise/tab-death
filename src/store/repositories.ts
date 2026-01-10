@@ -56,9 +56,6 @@ export interface ItemRepository {
   listMetaForCap(opts: { limit: number }): Promise<ItemMeta[]>;
   searchArchived(query: SearchQuery): Promise<TabDeathItem[]>;
   count(query: ItemQuery, tx?: Tx): Promise<number>;
-  listMetaForCap(opts: { limit: number }): Promise<ItemMeta[]>;
-  searchArchived(query: SearchQuery): Promise<TabDeathItem[]>;
-  count(query: ItemQuery): Promise<number>;
 }
 
 export interface OpRepository {
@@ -207,13 +204,6 @@ export class DexieItemRepository implements ItemRepository {
     }
     if (query.hasWhy != null) return table.where("hasWhy").equals(query.hasWhy ? 1 : 0).count();
     return table.count();
-  async count(query: ItemQuery): Promise<number> {
-    if (query.state) return this.db.items.where("state").equals(query.state as any).count();
-    if (query.isStarred != null) {
-      return this.db.items.where("isStarred").equals(query.isStarred as any).count();
-    }
-    if (query.hasWhy != null) return this.db.items.where("hasWhy").equals(query.hasWhy ? 1 : 0).count();
-    return this.db.items.count();
   }
 
   private rowToItem(row: ItemRow): TabDeathItem {

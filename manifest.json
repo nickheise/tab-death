@@ -3,7 +3,6 @@
   "name": "Tab Death",
   "version": "0.1.0",
   "permissions": ["tabs", "storage", "alarms", "contextMenus", "windows", "downloads"],
-  "permissions": ["tabs", "storage", "alarms", "contextMenus", "windows"],
   "background": {
     "service_worker": "background/index.js",
     "type": "module"
@@ -20,6 +19,5 @@
   "action": {
     "default_title": "Tab Death",
     "default_popup": "popup.html"
-    "default_title": "Tab Death"
   }
 }

@@ -1,12 +1,13 @@
 {
   "name": "tab-death",
+  "version": "0.1.0",
+  "description": "Tab Death Chrome extension",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "vite build && node scripts/copy-static.mjs",
     "typecheck": "tsc --noEmit",
     "sanity": "npm run typecheck && npm run build"
-    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dexie": "^4.0.1"
