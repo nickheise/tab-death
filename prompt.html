@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tab Death</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        background: #fff;
+        color: #111;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      .meta {
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        font-size: 13px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      button {
+        flex: 1;
+        padding: 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: #f7f7f7;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #111;
+        color: #fff;
+        border-color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Why did this matter?</h1>
+    <div class="meta" id="meta">Loading…</div>
+    <input id="why" type="text" maxlength="140" placeholder="Optional" />
+    <div class="actions">
+      <button id="skip" type="button">Skip</button>
+      <button id="save" type="button" class="primary">Save</button>
+    </div>
+    <script src="prompt.js"></script>
+  </body>
+</html>
