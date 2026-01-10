@@ -4,6 +4,7 @@ import { DefaultCapPolicy } from "../app/core/defaultCapPolicy";
 import { DefaultDecayEngine } from "../app/core/defaultDecayEngine";
 import { TabDeathDB } from "../store/db";
 import { DexieItemRepository, DexieOpRepository } from "../store/repositories";
+import { ExportService } from "../store/exportService";
 import { DefaultChromePlatformAdapter } from "../platform/chromeAdapter";
 import { SystemClock } from "../platform/clock";
 import { DefaultDomainPolicy } from "../platform/domainPolicy";
@@ -14,6 +15,7 @@ const db = new TabDeathDB();
 const itemRepo = new DexieItemRepository(db);
 const opRepo = new DexieOpRepository(db);
 
+const capture = new DefaultCaptureService(db, itemRepo, opRepo, 5);
 const capture = new DefaultCaptureService(db, itemRepo, opRepo);
 
 const decay = new DefaultDecayEngine();
@@ -56,6 +58,8 @@ const ingestor = new DefaultChromeEventIngestor({
 
 ingestor.init();
 
+const exportService = new ExportService(db);
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "TABDEATH_GET_REVIEW_BUCKETS") {
     void (async () => {
@@ -83,6 +87,52 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       await platform.openUrl(message.url, { active: true });
       await capture.touch(message.id);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (message?.type === "TABDEATH_STAR_ITEM") {
+    void (async () => {
+      if (typeof message.id !== "string") {
+        sendResponse({ ok: false });
+        return;
+      }
+      await capture.star(message.id);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (message?.type === "TABDEATH_UNSTAR_ITEM") {
+    void (async () => {
+      if (typeof message.id !== "string") {
+        sendResponse({ ok: false });
+        return;
+      }
+      await capture.unstar(message.id);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (message?.type === "TABDEATH_MARK_LAST_CHANCE") {
+    void (async () => {
+      if (!Array.isArray(message.ids)) {
+        sendResponse({ ok: false });
+        return;
+      }
+      const ids = message.ids.filter((id: unknown) => typeof id === "string");
+      await capture.markLastChanceShown(ids);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (message?.type === "TABDEATH_EXPORT") {
+    void (async () => {
+      const format = message.format;
+      const artifact = await exportService.export(format);
+      const blob = new Blob([artifact.bytes], { type: artifact.mimeType });
+      const url = URL.createObjectURL(blob);
+      await chrome.downloads.download({ url, filename: artifact.filename, saveAs: true });
+      URL.revokeObjectURL(url);
       sendResponse({ ok: true });
     })();
     return true;

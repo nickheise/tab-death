@@ -97,6 +97,14 @@ const renderReviewable = (item) => {
   const row = document.createElement("div");
   row.className = "row";
 
+  const star = document.createElement("button");
+  star.className = "btn";
+  star.textContent = item.isStarred ? "Unstar" : "Star";
+  star.addEventListener("click", async () => {
+    await send({ type: item.isStarred ? "TABDEATH_UNSTAR_ITEM" : "TABDEATH_STAR_ITEM", id: item.id });
+    await loadBuckets();
+  });
+
   const reopen = document.createElement("button");
   reopen.className = "btn";
   reopen.textContent = "Reopen";
@@ -105,6 +113,7 @@ const renderReviewable = (item) => {
     await loadBuckets();
   });
 
+  row.appendChild(star);
   row.appendChild(reopen);
 
   wrap.appendChild(why);
@@ -120,6 +129,20 @@ const loadBuckets = async () => {
   renderList("unclaimed", response.unclaimed || [], "Nothing waiting.", renderUnclaimed);
   renderList("deathRow", response.deathRow || [], "No items in Last Chance.", renderReviewable);
   renderList("starred", response.starred || [], "No starred items.", renderReviewable);
+  const deathRowIds = (response.deathRow || []).map((item) => item.id);
+  if (deathRowIds.length) {
+    await send({ type: "TABDEATH_MARK_LAST_CHANCE", ids: deathRowIds });
+  }
+};
+
+void loadBuckets();
+
+document.getElementById("exportJson").addEventListener("click", async () => {
+  await send({ type: "TABDEATH_EXPORT", format: "json_items" });
+});
+
+document.getElementById("exportCsv").addEventListener("click", async () => {
+  await send({ type: "TABDEATH_EXPORT", format: "csv_items" });
 };
 
 void loadBuckets();

@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Death",
   "version": "0.1.0",
+  "permissions": ["tabs", "storage", "alarms", "contextMenus", "windows", "downloads"],
   "permissions": ["tabs", "storage", "alarms", "contextMenus", "windows"],
   "background": {
     "service_worker": "background/index.js",

@@ -52,6 +52,10 @@ export interface ItemRepository {
   delete(id: string, tx?: Tx): Promise<void>;
   bulkDelete(ids: string[], tx?: Tx): Promise<void>;
   list(query: ItemQuery, opts: ListOptions): Promise<Page<TabDeathItem>>;
+  listStarredOldest(limit: number, tx?: Tx): Promise<TabDeathItem[]>;
+  listMetaForCap(opts: { limit: number }): Promise<ItemMeta[]>;
+  searchArchived(query: SearchQuery): Promise<TabDeathItem[]>;
+  count(query: ItemQuery, tx?: Tx): Promise<number>;
   listMetaForCap(opts: { limit: number }): Promise<ItemMeta[]>;
   searchArchived(query: SearchQuery): Promise<TabDeathItem[]>;
   count(query: ItemQuery): Promise<number>;
@@ -146,6 +150,13 @@ export class DexieItemRepository implements ItemRepository {
     return { items, nextCursor };
   }
 
+  async listStarredOldest(limit: number, tx?: Tx): Promise<TabDeathItem[]> {
+    const capped = Math.max(1, Math.min(limit, 50));
+    const table = tx ? (tx as any).table("items") : this.db.items;
+    const rows = await table.where("isStarred").equals(true).orderBy("createdAtMs").limit(capped).toArray();
+    return rows.map((row: ItemRow) => this.rowToItem(row));
+  }
+
   async listMetaForCap(opts: { limit: number }): Promise<ItemMeta[]> {
     const limit = Math.max(1, Math.min(opts.limit, 10000));
     const archived = await this.db.items
@@ -188,6 +199,14 @@ export class DexieItemRepository implements ItemRepository {
     return hits;
   }
 
+  async count(query: ItemQuery, tx?: Tx): Promise<number> {
+    const table = tx ? (tx as any).table("items") : this.db.items;
+    if (query.state) return table.where("state").equals(query.state as any).count();
+    if (query.isStarred != null) {
+      return table.where("isStarred").equals(query.isStarred as any).count();
+    }
+    if (query.hasWhy != null) return table.where("hasWhy").equals(query.hasWhy ? 1 : 0).count();
+    return table.count();
   async count(query: ItemQuery): Promise<number> {
     if (query.state) return this.db.items.where("state").equals(query.state as any).count();
     if (query.isStarred != null) {

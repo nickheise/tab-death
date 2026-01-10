@@ -18,12 +18,15 @@ export interface CaptureService {
   star(id: string): Promise<void>;
   unstar(id: string): Promise<void>;
   delete(id: string): Promise<void>;
+  markLastChanceShown(ids: string[]): Promise<void>;
 }
 
 export class DefaultCaptureService implements CaptureService {
   constructor(
     private readonly db: TabDeathDB,
     private readonly items: DexieItemRepository,
+    private readonly ops: DexieOpRepository,
+    private readonly maxStars: number
     private readonly ops: DexieOpRepository
   ) {}
 
@@ -92,6 +95,16 @@ export class DefaultCaptureService implements CaptureService {
   async star(id: string): Promise<void> {
     const at = isoNow();
     await this.items.withTx(async (tx) => {
+      const existing = await this.items.getById(id, tx);
+      if (!existing || existing.isStarred) return;
+      const starCount = await this.items.count({ isStarred: true }, tx);
+      if (starCount >= this.maxStars) {
+        const [oldest] = await this.items.listStarredOldest(1, tx);
+        if (oldest) {
+          await this.ops.append({ t: "UNSTAR", id: oldest.id, at }, tx);
+          await this.items.update(oldest.id, { isStarred: false }, tx);
+        }
+      }
       await this.ops.append({ t: "STAR", id, at }, tx);
       await this.items.update(id, { isStarred: true }, tx);
     });
@@ -110,6 +123,16 @@ export class DefaultCaptureService implements CaptureService {
     await this.items.withTx(async (tx) => {
       await this.ops.append({ t: "DELETE", id, at }, tx);
       await this.items.delete(id, tx);
+    });
+  }
+
+  async markLastChanceShown(ids: string[]): Promise<void> {
+    if (!ids.length) return;
+    const at = isoNow();
+    await this.items.withTx(async (tx) => {
+      for (const id of ids) {
+        await this.items.update(id, { lastChanceShownAt: at }, tx);
+      }
     });
   }
 }

@@ -67,6 +67,9 @@
         color: #fff;
         border-color: #111;
       }
+      .btn.row {
+        width: 100%;
+      }
       .empty {
         font-size: 12px;
         color: #888;
@@ -90,6 +93,14 @@
     <section>
       <h2>Starred</h2>
       <div id="starred"></div>
+    </section>
+
+    <section>
+      <h2>Export</h2>
+      <div class="row">
+        <button id="exportJson" class="btn row">Export JSON</button>
+        <button id="exportCsv" class="btn row">Export CSV</button>
+      </div>
     </section>
 
     <script src="popup.js"></script>
