@@ -53,46 +53,47 @@ export class DefaultChromeEventIngestor {
 
     void this.seedTabCache();
 
-    const onTabUpdated = (tabId: number, tab: ChromeTabSnapshot) => {
+    platform.onTabUpdated((tabId, tab) => {
       if (this.disposed) return;
       this.tabCache.set(tabId, tab);
-    };
+    });
 
-    const onTabRemoved = (tabId: number) => {
+    platform.onTabRemoved((tabId) => {
       if (this.disposed) return;
       this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
       this.tabCache.delete(tabId);
-    };
-
-    const onCommand = (command: string) => {
+    platform.onTabRemoved((tabId) => {
       if (this.disposed) return;
-      if (command === "tabdeath-close") {
-        void this.handleActiveCloseFromFocusedTab();
-      }
-    };
+      this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
+    });
 
-    const onContextMenu = (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => {
+    platform.onCommand((command) => {
+      if (this.disposed) return;
+      if (command === "tabdeath-close") void this.handleActiveCloseFromFocusedTab();
+    });
+
+    platform.onContextMenu((info, tab) => {
       if (this.disposed) return;
       if (info.menuItemId === "tabdeath.closeWithWhy" && tab?.id != null) {
         void this.handleActiveClose(tab.id);
       }
-    };
+    });
 
-    const onAlarm = (name: string) => {
+    platform.onAlarm((name) => {
       if (this.disposed) return;
-      if (name === "tabdeath.daily") {
-        void this.deps.maintenance.runDailyMaintenance(this.deps.clock.nowDate());
-      }
-    };
-
-    platform.onTabUpdated(onTabUpdated);
-    platform.onTabRemoved(onTabRemoved);
-    platform.onCommand(onCommand);
-    platform.onContextMenu(onContextMenu);
-    platform.onAlarm(onAlarm);
+      if (name === "tabdeath.daily") void this.deps.maintenance.runDailyMaintenance(this.deps.clock.nowDate());
+    });
 
     void platform.createDailyAlarm("tabdeath.daily");
+
     void this.ensureContextMenu();
+    chrome.runtime.onInstalled.addListener(() => {
+      chrome.contextMenus.create({
+        id: "tabdeath.closeWithWhy",
+        title: "Close with Tab Death…",
+        contexts: ["page"],
+      });
+    });
   }
 
   dispose(): void {
@@ -109,6 +110,7 @@ export class DefaultChromeEventIngestor {
   private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
     for (const evt of batch) {
       const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
+      const tab = await this.deps.platform.tryGetTab(evt.tabId);
       if (!tab) continue;
       if (this.shouldIgnore(tab.url, tab)) continue;
 
