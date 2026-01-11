@@ -16,7 +16,6 @@ export interface ChromePlatformAdapter {
 
   onCommand(handler: (command: string) => void): void;
   onTabRemoved(handler: (tabId: ChromeTabId, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void;
-  onTabUpdated(handler: (tabId: ChromeTabId, tab: ChromeTabSnapshot) => void): void;
   onContextMenu(handler: (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => void): void;
 
   onAlarm(handler: (name: string) => void): void;
@@ -59,20 +58,6 @@ export class DefaultChromePlatformAdapter implements ChromePlatformAdapter {
 
   onTabRemoved(handler: (tabId: ChromeTabId, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void {
     chrome.tabs.onRemoved.addListener(handler);
-  }
-
-  onTabUpdated(handler: (tabId: ChromeTabId, tab: ChromeTabSnapshot) => void): void {
-    chrome.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
-      if (!tab.url) return;
-      handler(tabId, {
-        tabId,
-        url: tab.url,
-        title: tab.title ?? tab.url,
-        pinned: !!tab.pinned,
-        incognito: !!tab.incognito,
-        windowId: tab.windowId,
-      });
-    });
   }
 
   onContextMenu(handler: (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => void): void {
