@@ -39,7 +39,6 @@ export interface ChromeEventIngestorDeps {
 
 export class DefaultChromeEventIngestor {
   private disposed = false;
-  private readonly tabCache = new Map<number, ChromeTabSnapshot>();
   private passiveQueue: MicroBatchQueue<{ tabId: number; removedAtIso: string }>;
 
   constructor(private readonly deps: ChromeEventIngestorDeps) {
@@ -51,17 +50,9 @@ export class DefaultChromeEventIngestor {
   init(): void {
     const { platform } = this.deps;
 
-    void this.seedTabCache();
-
-    platform.onTabUpdated((tabId, tab) => {
-      if (this.disposed) return;
-      this.tabCache.set(tabId, tab);
-    });
-
     platform.onTabRemoved((tabId) => {
       if (this.disposed) return;
       this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
-      this.tabCache.delete(tabId);
     });
 
     platform.onCommand((command) => {
@@ -83,7 +74,13 @@ export class DefaultChromeEventIngestor {
 
     void platform.createDailyAlarm("tabdeath.daily");
 
-    void this.ensureContextMenu();
+    chrome.runtime.onInstalled.addListener(() => {
+      chrome.contextMenus.create({
+        id: "tabdeath.closeWithWhy",
+        title: "Close with Tab Death…",
+        contexts: ["page"],
+      });
+    });
   }
 
   dispose(): void {
@@ -99,7 +96,7 @@ export class DefaultChromeEventIngestor {
 
   private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
     for (const evt of batch) {
-      const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
+      const tab = await this.deps.platform.tryGetTab(evt.tabId);
       if (!tab) continue;
       if (this.shouldIgnore(tab.url, tab)) continue;
 
@@ -110,31 +107,6 @@ export class DefaultChromeEventIngestor {
         at: evt.removedAtIso,
         why: null,
       });
-    }
-  }
-
-  private async ensureContextMenu(): Promise<void> {
-    try {
-      chrome.contextMenus.removeAll(() => {
-        chrome.contextMenus.create({
-          id: "tabdeath.closeWithWhy",
-          title: "Close with Tab Death…",
-          contexts: ["page"],
-        });
-      });
-    } catch {
-      // ignore
-    }
-  }
-
-  private async seedTabCache(): Promise<void> {
-    try {
-      const tabs = await this.deps.platform.listTabs();
-      for (const tab of tabs) {
-        this.tabCache.set(tab.tabId, tab);
-      }
-    } catch {
-      // ignore
     }
   }
 
