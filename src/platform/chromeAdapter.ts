@@ -13,6 +13,11 @@ export interface ChromePlatformAdapter {
   tryGetTab(tabId: ChromeTabId): Promise<ChromeTabSnapshot | null>;
   closeTab(tabId: ChromeTabId): Promise<void>;
   openUrl(url: string, opts?: { active?: boolean }): Promise<void>;
+  listTabs(): Promise<ChromeTabSnapshot[]>;
+
+  onCommand(handler: (command: string) => void): void;
+  onTabRemoved(handler: (tabId: ChromeTabId, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void;
+  onTabUpdated(handler: (tabId: ChromeTabId, tab: ChromeTabSnapshot) => void): void;
 
   onCommand(handler: (command: string) => void): void;
   onTabRemoved(handler: (tabId: ChromeTabId, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void;
@@ -52,12 +57,40 @@ export class DefaultChromePlatformAdapter implements ChromePlatformAdapter {
     await chrome.tabs.create({ url, active: opts?.active ?? true });
   }
 
+  async listTabs(): Promise<ChromeTabSnapshot[]> {
+    const tabs = await chrome.tabs.query({});
+    return tabs
+      .filter((tab) => tab.id != null && tab.url)
+      .map((tab) => ({
+        tabId: tab.id as number,
+        url: tab.url as string,
+        title: tab.title ?? tab.url ?? "",
+        pinned: !!tab.pinned,
+        incognito: !!tab.incognito,
+        windowId: tab.windowId,
+      }));
+  }
+
   onCommand(handler: (command: string) => void): void {
     chrome.commands.onCommand.addListener(handler);
   }
 
   onTabRemoved(handler: (tabId: ChromeTabId, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void {
     chrome.tabs.onRemoved.addListener(handler);
+  }
+
+  onTabUpdated(handler: (tabId: ChromeTabId, tab: ChromeTabSnapshot) => void): void {
+    chrome.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
+      if (!tab.url) return;
+      handler(tabId, {
+        tabId,
+        url: tab.url,
+        title: tab.title ?? tab.url,
+        pinned: !!tab.pinned,
+        incognito: !!tab.incognito,
+        windowId: tab.windowId,
+      });
+    });
   }
 
   onContextMenu(handler: (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => void): void {
