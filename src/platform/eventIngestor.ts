@@ -62,9 +62,6 @@ export class DefaultChromeEventIngestor {
       if (this.disposed) return;
       this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
       this.tabCache.delete(tabId);
-    platform.onTabRemoved((tabId) => {
-      if (this.disposed) return;
-      this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
     });
 
     platform.onCommand((command) => {
@@ -87,13 +84,6 @@ export class DefaultChromeEventIngestor {
     void platform.createDailyAlarm("tabdeath.daily");
 
     void this.ensureContextMenu();
-    chrome.runtime.onInstalled.addListener(() => {
-      chrome.contextMenus.create({
-        id: "tabdeath.closeWithWhy",
-        title: "Close with Tab Death…",
-        contexts: ["page"],
-      });
-    });
   }
 
   dispose(): void {
@@ -110,7 +100,6 @@ export class DefaultChromeEventIngestor {
   private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
     for (const evt of batch) {
       const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
-      const tab = await this.deps.platform.tryGetTab(evt.tabId);
       if (!tab) continue;
       if (this.shouldIgnore(tab.url, tab)) continue;
 

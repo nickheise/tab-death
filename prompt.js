@@ -35,6 +35,17 @@ input.addEventListener("keydown", (event) => {
 
 save.addEventListener("click", () => sendResult(input.value.trim() || null));
 skip.addEventListener("click", () => sendResult(null));
-window.addEventListener("blur", () => sendResult(null));
+
+// Auto-close on blur with 1-second delay (prevents accidental loss)
+let blurTimer = null;
+window.addEventListener("blur", () => {
+  blurTimer = setTimeout(() => sendResult(null), 1000);
+});
+window.addEventListener("focus", () => {
+  if (blurTimer) {
+    clearTimeout(blurTimer);
+    blurTimer = null;
+  }
+});
 
 input.focus();

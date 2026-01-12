@@ -23,6 +23,12 @@ const ageInDays = (createdAt) => {
   return Math.max(0, days);
 };
 
+const daysUntilDeath = (createdAt) => {
+  const age = ageInDays(createdAt);
+  const deathAt = 30; // critical ends at 30 days
+  return Math.max(0, deathAt - age);
+};
+
 const send = (payload) =>
   new Promise((resolve) => {
     chrome.runtime.sendMessage(payload, (response) => resolve(response));
@@ -30,7 +36,7 @@ const send = (payload) =>
 
 const renderUnclaimed = (item) => {
   const wrap = document.createElement("div");
-  wrap.className = "item";
+  wrap.className = `item ${item.state || 'fresh'}`;
 
   const title = document.createElement("div");
   title.className = "why";
@@ -70,7 +76,7 @@ const renderUnclaimed = (item) => {
 
 const renderReviewable = (item) => {
   const wrap = document.createElement("div");
-  wrap.className = "item";
+  wrap.className = `item ${item.state || 'fresh'}`;
 
   const why = document.createElement("div");
   why.className = "why";
@@ -78,7 +84,19 @@ const renderReviewable = (item) => {
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  meta.textContent = `${item.domain} · ${ageInDays(item.createdAt)} days`;
+  const age = ageInDays(item.createdAt);
+  meta.textContent = `${item.domain} · ${age} days`;
+
+  // Add warning for critical items
+  if (item.state === 'critical') {
+    const warning = document.createElement("div");
+    warning.className = "warning";
+    const daysLeft = daysUntilDeath(item.createdAt);
+    warning.textContent = daysLeft > 0
+      ? `⚠️ Dies in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`
+      : `⚠️ Dies soon`;
+    wrap.appendChild(warning);
+  }
 
   const row = document.createElement("div");
   row.className = "row";
