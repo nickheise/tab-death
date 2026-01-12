@@ -13,12 +13,22 @@ import { DefaultChromeEventIngestor } from "../platform/eventIngestor";
 import { RuntimePromptBridge } from "../platform/promptBridge";
 
 const initBackground = async () => {
-  const db = new TabDeathDB();
-  const itemRepo = new DexieItemRepository(db);
-  const opRepo = new DexieOpRepository(db);
+  try {
+    console.log('[Tab Death] Starting initialization...');
 
-  const settings = await loadSettings();
-  const capture = new DefaultCaptureService(db, itemRepo, opRepo, settings.maxStars);
+    const db = new TabDeathDB();
+
+    // Explicitly open database and wait for it to be ready
+    await db.open();
+    console.log('[Tab Death] Database opened successfully');
+
+    const itemRepo = new DexieItemRepository(db);
+    const opRepo = new DexieOpRepository(db);
+
+    const settings = await loadSettings();
+    console.log('[Tab Death] Settings loaded:', settings);
+
+    const capture = new DefaultCaptureService(db, itemRepo, opRepo, settings.maxStars);
 
   const decay = new DefaultDecayEngine();
   const cap = new DefaultCapPolicy();
@@ -58,19 +68,28 @@ const initBackground = async () => {
     },
   });
 
-  ingestor.init();
-  void maintenance.runDailyMaintenance(clock.nowDate());
+    // Register event listeners AFTER everything is initialized
+    ingestor.init();
+    console.log('[Tab Death] Event listeners registered');
 
-  const exportService = new ExportService(db);
+    void maintenance.runDailyMaintenance(clock.nowDate());
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type === "TABDEATH_GET_REVIEW_BUCKETS") {
-      void (async () => {
-        const buckets = await maintenance.getReviewBuckets(clock.nowDate());
-        sendResponse(buckets);
-      })();
-      return true;
-    }
+    const exportService = new ExportService(db);
+
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      try {
+        if (message?.type === "TABDEATH_GET_REVIEW_BUCKETS") {
+          void (async () => {
+            try {
+              const buckets = await maintenance.getReviewBuckets(clock.nowDate());
+              sendResponse(buckets);
+            } catch (error) {
+              console.error('[Tab Death] Error getting review buckets:', error);
+              sendResponse({ unclaimed: [], deathRow: [], starred: [] });
+            }
+          })();
+          return true;
+        }
     if (message?.type === "TABDEATH_SET_WHY") {
       void (async () => {
         if (typeof message.id !== "string") {
@@ -151,8 +170,20 @@ const initBackground = async () => {
       })();
       return true;
     }
-    return false;
-  });
+        return false;
+      } catch (error) {
+        console.error('[Tab Death] Error in message handler:', error);
+        return false;
+      }
+    });
+
+    console.log('[Tab Death] Initialized successfully ✓');
+  } catch (error) {
+    console.error('[Tab Death] Initialization failed:', error);
+    throw error;
+  }
 };
 
-void initBackground();
+initBackground().catch((err) => {
+  console.error('[Tab Death] Fatal initialization error:', err);
+});

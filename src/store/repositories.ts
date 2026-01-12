@@ -118,32 +118,96 @@ export class DexieItemRepository implements ItemRepository {
 
   async list(query: ItemQuery, opts: ListOptions): Promise<Page<TabDeathItem>> {
     const limit = Math.max(1, Math.min(opts.limit, 200));
-    let coll: Dexie.Collection<ItemRow, any> = this.db.items.toCollection();
 
-    if (query.domain) coll = this.db.items.where("domain").equals(query.domain);
-    if (query.isStarred != null) coll = this.db.items.where("isStarred").equals(query.isStarred as any);
-    if (query.state) coll = this.db.items.where("state").equals(query.state as any);
-    if (query.states && query.states.length) coll = this.db.items.where("state").anyOf(query.states as any);
-    if (query.hasWhy != null) coll = this.db.items.where("hasWhy").equals(query.hasWhy ? 1 : 0);
+    // Special case: hasWhy query uses compound index
+    if (query.hasWhy != null && !query.state && !query.states && !query.isStarred && !query.domain && !query.createdAtAfter && !query.createdAtBefore) {
+      const hasWhy = query.hasWhy ? 1 : 0;
+      const cursorMs = opts.cursor ? new Date(opts.cursor).getTime() : Dexie.maxKey;
 
-    if (opts.cursor) {
-      const cursorMs = new Date(opts.cursor).getTime();
-      coll = coll.and((r) => r.createdAtMs < cursorMs);
+      const rows = await this.db.items
+        .where("[hasWhy+createdAtMs]")
+        .between([hasWhy, Dexie.minKey], [hasWhy, cursorMs], true, false)
+        .reverse()
+        .limit(limit)
+        .toArray();
+
+      const items = rows.map((r) => this.rowToItem(r));
+      const nextCursor = rows.length === limit
+        ? new Date(rows[rows.length - 1].createdAtMs).toISOString()
+        : undefined;
+      return { items, nextCursor };
     }
 
-    if (query.createdAtAfter) {
-      const ms = new Date(query.createdAtAfter).getTime();
-      coll = coll.and((r) => r.createdAtMs >= ms);
+    // Special case: state query uses compound index
+    if (query.state && !query.hasWhy && !query.isStarred && !query.domain && !query.createdAtAfter && !query.createdAtBefore) {
+      const cursorMs = opts.cursor ? new Date(opts.cursor).getTime() : Dexie.maxKey;
+
+      const rows = await this.db.items
+        .where("[state+createdAtMs]")
+        .between([query.state, Dexie.minKey], [query.state, cursorMs], true, false)
+        .reverse()
+        .limit(limit)
+        .toArray();
+
+      const items = rows.map((r) => this.rowToItem(r));
+      const nextCursor = rows.length === limit
+        ? new Date(rows[rows.length - 1].createdAtMs).toISOString()
+        : undefined;
+      return { items, nextCursor };
     }
+
+    // Special case: isStarred query uses compound index
+    if (query.isStarred != null && !query.state && !query.states && !query.hasWhy && !query.domain && !query.createdAtAfter && !query.createdAtBefore) {
+      const cursorMs = opts.cursor ? new Date(opts.cursor).getTime() : Dexie.maxKey;
+
+      const rows = await this.db.items
+        .where("[isStarred+createdAtMs]")
+        .between([query.isStarred as any, Dexie.minKey], [query.isStarred as any, cursorMs], true, false)
+        .reverse()
+        .limit(limit)
+        .toArray();
+
+      const items = rows.map((r) => this.rowToItem(r));
+      const nextCursor = rows.length === limit
+        ? new Date(rows[rows.length - 1].createdAtMs).toISOString()
+        : undefined;
+      return { items, nextCursor };
+    }
+
+    // Complex queries: fetch all matching items, sort in memory
+    let rows = await this.db.items.toArray();
+
+    // Apply filters in memory
+    if (query.state) rows = rows.filter(r => r.state === query.state);
+    if (query.states) rows = rows.filter(r => query.states!.includes(r.state as any));
+    if (query.isStarred != null) rows = rows.filter(r => r.isStarred === query.isStarred);
+    if (query.hasWhy != null) rows = rows.filter(r => (r.hasWhy === 1) === query.hasWhy);
+    if (query.domain) rows = rows.filter(r => r.domain === query.domain);
     if (query.createdAtBefore) {
       const ms = new Date(query.createdAtBefore).getTime();
-      coll = coll.and((r) => r.createdAtMs <= ms);
+      rows = rows.filter(r => r.createdAtMs <= ms);
+    }
+    if (query.createdAtAfter) {
+      const ms = new Date(query.createdAtAfter).getTime();
+      rows = rows.filter(r => r.createdAtMs >= ms);
     }
 
-    const rows = await coll.orderBy("createdAtMs").reverse().limit(limit).toArray();
-    const items = rows.map((r) => this.rowToItem(r));
-    const nextCursor =
-      rows.length === limit ? new Date(rows[rows.length - 1].createdAtMs).toISOString() : undefined;
+    // Sort by createdAtMs descending
+    rows.sort((a, b) => b.createdAtMs - a.createdAtMs);
+
+    // Apply cursor
+    if (opts.cursor) {
+      const cursorMs = new Date(opts.cursor).getTime();
+      rows = rows.filter(r => r.createdAtMs < cursorMs);
+    }
+
+    // Limit
+    const limited = rows.slice(0, limit);
+    const items = limited.map((r) => this.rowToItem(r));
+    const nextCursor = limited.length === limit
+      ? new Date(limited[limited.length - 1].createdAtMs).toISOString()
+      : undefined;
+
     return { items, nextCursor };
   }
 

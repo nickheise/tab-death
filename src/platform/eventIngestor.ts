@@ -99,17 +99,24 @@ export class DefaultChromeEventIngestor {
 
   private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
     for (const evt of batch) {
-      const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
-      if (!tab) continue;
-      if (this.shouldIgnore(tab.url, tab)) continue;
+      try {
+        const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
+        if (!tab) continue;
+        if (this.shouldIgnore(tab.url, tab)) continue;
 
-      await this.deps.capture.captureClosedTab({
-        url: tab.url,
-        title: tab.title,
-        domain: this.deps.domainPolicy.domainFromUrl(tab.url),
-        at: evt.removedAtIso,
-        why: null,
-      });
+        await this.deps.capture.captureClosedTab({
+          url: tab.url,
+          title: tab.title,
+          domain: this.deps.domainPolicy.domainFromUrl(tab.url),
+          at: evt.removedAtIso,
+          why: null,
+        });
+
+        console.log('[Tab Death] Captured tab:', tab.title);
+      } catch (error) {
+        console.error('[Tab Death] Error capturing closed tab:', error, evt);
+        // Continue processing other tabs in batch
+      }
     }
   }
 
