@@ -59,9 +59,11 @@ export class DefaultChromeEventIngestor {
     });
 
     platform.onTabRemoved((tabId) => {
+      console.log('[Tab Death] 🔴 TAB REMOVED EVENT FIRED! tabId:', tabId);
       if (this.disposed) return;
       this.passiveQueue.push({ tabId, removedAtIso: this.deps.clock.nowIso() });
       this.tabCache.delete(tabId);
+      console.log('[Tab Death] 🟢 Tab queued for batch processing');
     });
 
     platform.onCommand((command) => {
@@ -98,11 +100,18 @@ export class DefaultChromeEventIngestor {
   }
 
   private async flushPassiveBatch(batch: Array<{ tabId: number; removedAtIso: string }>): Promise<void> {
+    console.log('[Tab Death] 🟡 Flushing batch of', batch.length, 'tabs');
     for (const evt of batch) {
       try {
         const tab = this.tabCache.get(evt.tabId) ?? (await this.deps.platform.tryGetTab(evt.tabId));
-        if (!tab) continue;
-        if (this.shouldIgnore(tab.url, tab)) continue;
+        if (!tab) {
+          console.log('[Tab Death] ⚠️ Tab not found in cache or Chrome API, tabId:', evt.tabId);
+          continue;
+        }
+        if (this.shouldIgnore(tab.url, tab)) {
+          console.log('[Tab Death] ⚠️ Tab ignored by filter rules:', tab.url, 'pinned:', tab.pinned, 'incognito:', tab.incognito);
+          continue;
+        }
 
         await this.deps.capture.captureClosedTab({
           url: tab.url,
